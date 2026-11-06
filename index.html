@@ -42,6 +42,20 @@ button.sm{min-height:40px;padding:0 12px;font-size:15px}
 .nav{position:fixed;left:0;right:0;bottom:0;background:var(--panel);border-top:2px solid var(--line);padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px))}
 .nav div{max-width:520px;margin:0 auto;display:flex;gap:12px}.nav button{flex:1}
 .nav #next{flex:2;background:var(--acc);color:#1B2127;border-color:var(--acc)}.nav button:disabled{opacity:.4;cursor:default}
+.filtros{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}.filtros input{flex:1;min-width:200px}
+.fila{display:grid;grid-template-columns:150px 1fr 1fr auto;gap:12px;align-items:center;width:100%;text-align:left;min-height:56px;margin-bottom:8px;border-color:var(--line)}
+.fila:hover{border-color:var(--sel)}
+.st{font-style:normal;font-weight:600;font-size:14px;padding:3px 10px;border-radius:999px;border:2px solid var(--line);display:inline-block;margin:0}
+.st.enviado{border-color:var(--sel)}.st.en_revision{border-color:var(--warn);color:var(--warn)}.st.aprobado{border-color:var(--ok);color:var(--ok)}.st.observado{border-color:var(--err);color:var(--err)}
+dl{display:grid;grid-template-columns:200px 1fr;gap:6px 16px;margin:12px 0}dt{font-weight:600;color:var(--mute)}dd{margin:0;white-space:pre-wrap}
+#sfotos{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin:16px 0}
+figure{margin:0}figure img{width:100%;border-radius:6px;display:block}figcaption{font-size:14px;color:var(--mute)}
+.rev{border-top:2px solid var(--line);padding-top:16px;margin-top:16px}.acciones{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+@media (max-width:640px){.fila{grid-template-columns:1fr}dl{grid-template-columns:1fr}}
+@media print{body{background:#fff;color:#000}.noimp{display:none!important}.wrap{padding:0}figure{break-inside:avoid}#sfotos{grid-template-columns:1fr 1fr}dt{color:#444}}
+.tabs{display:flex;gap:8px;margin:14px 0 0}.tabs button{flex:1;min-height:48px;padding:0 8px}.tabs button.on{background:var(--sel);color:var(--on-sel)}
+.wrap.ancho{max-width:960px}.filtros select,.filtros input,.filtros button{width:auto}.filtros input{flex:1;min-width:200px}.acciones button.pri{width:auto}
+#vBandeja h2{margin:18px 0 12px}#vBandeja .rev label{display:block;margin-bottom:6px}
 </style>
 </head>
 <body>
@@ -56,7 +70,9 @@ button.sm{min-height:40px;padding:0 12px;font-size:15px}
 </div>
 
 <div id="app" class="wrap" hidden>
-<div class="row"><span id="chip" class="chip">…</span><button class="sm" id="salir">Salir</button></div>
+<div class="row noimp"><span id="chip" class="chip">…</span><button class="sm" id="salir">Salir</button></div>
+<div class="tabs noimp" id="tabs" hidden><button type="button" id="tInf" class="on">Nuevo informe</button><button type="button" id="tBan">Bandeja de informes</button></div>
+<div id="vInforme">
 <div class="prog" id="prog"><i></i><i></i><i></i><i></i><i></i></div>
 <p class="paso" id="paso"></p><h1 id="titulo"></h1>
 <p id="sinCat" class="msg err" hidden>Aún no hay catálogos descargados. Conéctate a internet una vez para descargarlos.</p>
@@ -103,6 +119,36 @@ button.sm{min-height:40px;padding:0 12px;font-size:15px}
 
 <nav class="nav"><div><button type="button" id="back">Atrás</button><button type="button" id="next">Siguiente</button></div></nav>
 </div>
+<div id="vBandeja" hidden>
+<h2 class="noimp">Informes recibidos</h2>
+<p id="saviso" class="msg noimp" hidden></p>
+
+<section id="lista">
+<div class="filtros">
+<select id="fe"><option value="">Todos los estados</option><option value="enviado">Enviado</option><option value="en_revision">En revisión</option><option value="observado">Observado</option><option value="aprobado">Aprobado</option></select>
+<input id="ft" type="search" placeholder="Buscar por equipo o técnico">
+<button id="rec">Actualizar</button>
+</div>
+<div id="filas"></div>
+</section>
+
+<section id="det" hidden>
+<button id="volver" class="noimp">← Volver a la bandeja</button>
+<div id="ficha"></div>
+<div id="sfotos"></div>
+<div class="rev noimp">
+<label for="coment"><b>Comentario de revisión</b></label>
+<textarea id="coment" placeholder="Obligatorio si marcas el informe como observado."></textarea>
+<div class="acciones">
+<button data-e="en_revision">Marcar en revisión</button>
+<button data-e="observado">Observado</button>
+<button data-e="aprobado" class="pri">Aprobar</button>
+<button id="imp">Imprimir / guardar PDF</button>
+</div>
+</div>
+</section>
+</div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.99.3/dist/umd/supabase.js" crossorigin="anonymous"></script>
 <script>
@@ -123,13 +169,13 @@ async function init(){
   const {data:{session}}=await db.auth.getSession();
   if(session){uid=session.user.id;localStorage.setItem("uid",uid)}else if(!navigator.onLine)uid=localStorage.getItem("uid");
   uid?entrar():$("#login").hidden=false}
-async function entrar(){$("#login").hidden=true;$("#app").hidden=false;await cargarCat();pintar();cargarB();show(0);chip();sync()}
+async function entrar(){$("#login").hidden=true;$("#app").hidden=false;await cargarCat();pintar();cargarB();show(0);chip();sync();rolUI()}
 $("#ingresar").onclick=async()=>{
   const {data,error}=await db.auth.signInWithPassword({email:$("#em").value.trim(),password:$("#pw").value}),e=$("#lerr");
   if(error){e.hidden=false;e.textContent=navigator.onLine?"Correo o contraseña incorrectos.":"Sin conexión. La primera vez necesitas internet.";return}
-  e.hidden=true;uid=data.user.id;localStorage.setItem("uid",uid);entrar()};
+  e.hidden=true;uid=data.user.id;localStorage.setItem("uid",uid);localStorage.removeItem("rol");entrar()};
 $("#salir").onclick=async()=>{if(!confirm("¿Cerrar sesión? Los informes pendientes se enviarán cuando vuelvas a ingresar."))return;
-  await db.auth.signOut();localStorage.removeItem("uid");localStorage.removeItem("borrador");location.reload()};
+  await db.auth.signOut();localStorage.removeItem("uid");localStorage.removeItem("rol");localStorage.removeItem("borrador");location.reload()};
 
 /* Catálogos: se descargan con conexión y se guardan para usarlos sin ella */
 async function cargarCat(){
@@ -207,6 +253,55 @@ async function sync(){
   }finally{busy=false;chip();if(ok&&!$("#nuevo").hidden)msg("Informe enviado al supervisor.","sent")}}
 addEventListener("online",()=>{chip();sync()});addEventListener("offline",chip);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)sync()});setInterval(sync,30000);
+
+/* Bandeja del supervisor (solo visible para supervisor y planificador) */
+const bandeja=(()=>{
+const ES={enviado:"Enviado",en_revision:"En revisión",aprobado:"Aprobado",observado:"Observado"};
+const fh=d=>d?new Date(d).toLocaleString("es-CL",{dateStyle:"medium",timeStyle:"short"}):"";
+const saviso=h=>{const a=$("#saviso");a.hidden=!h;a.innerHTML=h||""};
+const SEL="*,equipo:equipos(codigo,descripcion),tecnico:perfiles!tecnico_id(nombre),sistema:sistemas(nombre),componente:componentes(nombre),sintoma:sintomas(nombre),causa:causas(nombre),repuestos:informe_repuestos(codigo,cantidad),fotos:informe_fotos(ruta,etiqueta,orden)";
+let data=[],cur=null;
+
+async function cargar(){
+  const r=await db.from("informes").select(SEL).order("fecha_hora",{ascending:false}).limit(300);
+  if(r.error)return saviso("No se pudieron cargar los informes: "+esc(r.error.message));
+  saviso("");data=r.data;pintar()}
+function pintar(){
+  const e=$("#fe").value,t=$("#ft").value.toLowerCase();
+  const a=data.filter(i=>(!e||i.estado===e)&&(!t||(i.equipo.codigo+" "+i.equipo.descripcion+" "+(i.tecnico?.nombre||"")).toLowerCase().includes(t)));
+  $("#filas").innerHTML=a.length?a.map(i=>`<button class="fila" data-id="${i.id}"><b>${esc(i.equipo.codigo)}</b><span>${esc(i.tipo)} · ${esc(i.condicion)}</span><span>${fh(i.fecha_hora)} · ${esc(i.tecnico?.nombre)}</span><em class="st ${i.estado}">${ES[i.estado]}</em></button>`).join(""):'<p class="hint">No hay informes con esos filtros.</p>';
+  $$(".fila").forEach(b=>b.onclick=()=>abrir(b.dataset.id))}
+async function abrir(id){
+  cur=data.find(i=>i.id===id);const i=cur;$("#lista").hidden=true;$("#det").hidden=false;window.scrollTo(0,0);
+  const dl=(k,v)=>v?`<dt>${k}</dt><dd>${esc(v)}</dd>`:"";
+  $("#ficha").innerHTML=`<h2>${esc(i.equipo.codigo)} · ${esc(i.equipo.descripcion)}</h2><p class="st ${i.estado}">${ES[i.estado]}</p><dl>`
+   +dl("Tipo",i.tipo)+dl("Fecha",fh(i.fecha_hora))+dl("Técnico",i.tecnico?.nombre)+dl("Horómetro u odómetro",i.horometro!=null?Number(i.horometro).toLocaleString("es-CL"):"")
+   +dl("Sistema",i.sistema?.nombre)+dl("Componente",i.componente?.nombre)+dl("Síntoma",i.sintoma?.nombre)+dl("Condición",i.condicion)+dl("Descripción",i.descripcion)
+   +dl("Intervención",i.intervencion)+dl("Causa probable",i.causa?.nombre)+dl("Acciones",i.acciones)+dl("Inicio",fh(i.inicio_at))+dl("Término",fh(i.fin_at))
+   +dl("Estado final",i.estado_final)+dl("Pendientes",i.pendientes)+dl("Repuestos",i.repuestos.map(r=>r.codigo+" × "+r.cantidad).join(", "))
+   +dl("Comentario de revisión",i.comentario_revision)+"</dl>";
+  $("#coment").value=i.comentario_revision||"";$("#sfotos").innerHTML="";
+  const f=[...i.fotos].sort((a,b)=>a.orden-b.orden);
+  if(f.length){const s=await db.storage.from("fotos").createSignedUrls(f.map(x=>x.ruta),3600);
+    $("#sfotos").innerHTML=f.map((x,k)=>{const u=s.data&&s.data[k]&&s.data[k].signedUrl;return u?`<figure><img src="${u}" alt="${esc(x.etiqueta)}"><figcaption>${esc(x.etiqueta)}</figcaption></figure>`:""}).join("")}}
+async function revisar(est){
+  const c=$("#coment").value.trim();
+  if(est==="observado"&&!c)return saviso("Escribe un comentario para que el técnico sepa qué corregir.");
+  const r=await db.from("informes").update({estado:est,comentario_revision:c||null,revisado_por:uid,revisado_at:new Date().toISOString()}).eq("id",cur.id).select("estado,comentario_revision");
+  if(r.error||!r.data.length)return saviso("No se pudo guardar: "+esc(r.error?r.error.message:"sin permiso"));
+  saviso("");Object.assign(cur,r.data[0]);abrir(cur.id)}
+$$("[data-e]").forEach(b=>b.onclick=()=>revisar(b.dataset.e));
+$("#imp").onclick=()=>window.print();
+$("#volver").onclick=()=>{$("#det").hidden=true;$("#lista").hidden=false;saviso("");pintar()};
+$("#fe").onchange=pintar;$("#ft").oninput=pintar;$("#rec").onclick=cargar;
+return {cargar};
+})();
+let bandejaOK=false;
+function vista(v){const b=v==="ban";$("#vInforme").hidden=b;$("#vBandeja").hidden=!b;$("#app").classList.toggle("ancho",b);$("#tInf").classList.toggle("on",!b);$("#tBan").classList.toggle("on",b);window.scrollTo(0,0);if(b)bandeja.cargar()}
+$("#tInf").onclick=()=>vista("inf");$("#tBan").onclick=()=>vista("ban");
+async function rolUI(){let rol=localStorage.getItem("rol");
+  try{const p=await db.from("perfiles").select("rol").eq("id",uid).single();if(p.data){rol=p.data.rol;localStorage.setItem("rol",rol)}}catch(e){}
+  $("#tabs").hidden=!["supervisor","planificador"].includes(rol)}
 
 if("serviceWorker"in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js"));
 init();

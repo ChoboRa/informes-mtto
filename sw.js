@@ -1,6 +1,6 @@
 /* Guarda la app en el equipo para que abra sin conexión.
    Si cambias algún archivo de la app, sube también el número de versión (C). */
-const C = "informes-v1";
+const C = "informes-v2";
 const LIB = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.99.3/dist/umd/supabase.js";
 const A = ["./", "index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png", LIB];
 
