@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Informes de mantenimiento</title>
+<meta name="theme-color" content="#F2C200">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{--bg:#ECEDEA;--panel:#fff;--ink:#1B2127;--mute:#5B646C;--line:#C4C8C3;--acc:#F2C200;--ok:#1F7A4D;--warn:#9A5200;--err:#B3261E;--sel:#1B2127;--on-sel:#fff;box-sizing:border-box}
+@media (prefers-color-scheme:dark){:root{--bg:#14181C;--panel:#1E242A;--ink:#EEF0EC;--mute:#9AA3AB;--line:#3A444D;--ok:#4CC38A;--warn:#F0A04B;--err:#FF8A80;--sel:#EEF0EC;--on-sel:#14181C}}
+*,*::before,*::after{box-sizing:inherit}[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 17px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:520px;margin:0 auto;padding:calc(16px + env(safe-area-inset-top,0px)) 16px 130px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.chip{font-weight:600;font-size:15px;padding:6px 12px;border-radius:999px;border:2px solid var(--ok);color:var(--ok);background:var(--panel)}
+.chip.pending{border-color:var(--warn);color:var(--warn)}
+.prog{display:flex;gap:6px;margin:18px 0 10px}.prog i{flex:1;height:8px;background:var(--line);border-radius:2px}.prog i.on{background:var(--acc)}
+.paso{margin:0;color:var(--mute);font-size:15px}
+h1{margin:2px 0 18px;font:800 38px/1.05 "Arial Narrow","Roboto Condensed",system-ui,sans-serif;display:inline-block;box-shadow:inset 0 -.32em 0 var(--acc)}
+.step{display:none}.step.on{display:block}
+.f{margin:0 0 20px;border:0;padding:0}.f>label,.f>legend,.lbl{display:block;font-weight:600;margin:0 0 6px;padding:0}
+.hint{font-size:14px;color:var(--mute);margin:4px 0 0}
+input[type=text],input[type=email],input[type=password],input[type=number],input[type=time],select,textarea{width:100%;min-height:54px;padding:10px 12px;font:inherit;color:var(--ink);background:var(--panel);border:2px solid var(--line);border-radius:6px}
+textarea{min-height:110px;resize:vertical}
+:is(input,select,textarea,button):focus-visible{outline:3px solid var(--sel);outline-offset:2px}
+.seg{display:flex;gap:8px}.seg label{flex:1}.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg span{display:flex;align-items:center;justify-content:center;text-align:center;min-height:56px;padding:6px 8px;font-weight:600;line-height:1.15;background:var(--panel);border:2px solid var(--line);border-radius:6px}
+.seg input:checked+span{background:var(--sel);color:var(--on-sel);border-color:var(--sel)}
+.seg input:focus-visible+span{outline:3px solid var(--sel);outline-offset:2px}
+.auto{color:var(--mute);font-size:15px;margin:-8px 0 20px}.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.rep{display:grid;grid-template-columns:1fr 90px auto;gap:8px;margin-bottom:8px}
+button{font:inherit;font-weight:600;min-height:54px;padding:0 16px;border-radius:6px;border:2px solid var(--sel);background:var(--panel);color:var(--ink);cursor:pointer}
+button.lnk{width:100%;border-style:dashed}button.pri{width:100%;background:var(--acc);border-color:var(--acc);color:#1B2127}
+button.sm{min-height:40px;padding:0 12px;font-size:15px}
+.slots{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+.tile{width:100%;aspect-ratio:1;padding:0;border:2px dashed var(--line);overflow:hidden;display:flex;align-items:center;justify-content:center;text-align:center;line-height:1.25;color:var(--mute)}
+.tile.has{border-style:solid;border-color:var(--ink)}.tile img{width:100%;height:100%;object-fit:cover}.slot select{margin-top:6px;min-height:46px}
+.msg{padding:14px;border-left:8px solid var(--line);background:var(--panel);margin:0 0 16px}.msg.err{border-color:var(--err)}.msg.pending{border-color:var(--warn)}.msg.sent{border-color:var(--ok)}
+.nav{position:fixed;left:0;right:0;bottom:0;background:var(--panel);border-top:2px solid var(--line);padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px))}
+.nav div{max-width:520px;margin:0 auto;display:flex;gap:12px}.nav button{flex:1}
+.nav #next{flex:2;background:var(--acc);color:#1B2127;border-color:var(--acc)}.nav button:disabled{opacity:.4;cursor:default}
+</style>
+</head>
+<body>
+
+<div id="login" class="wrap" hidden>
+<h1>Ingresar</h1>
+<div class="f"><label for="em">Correo</label><input type="email" id="em" autocomplete="username"></div>
+<div class="f"><label for="pw">Contraseña</label><input type="password" id="pw" autocomplete="current-password"></div>
+<p id="lerr" class="msg err" hidden></p>
+<button class="pri" id="ingresar">Ingresar</button>
+<p class="hint">La primera vez necesitas conexión a internet.</p>
+</div>
+
+<div id="app" class="wrap" hidden>
+<div class="row"><span id="chip" class="chip">…</span><button class="sm" id="salir">Salir</button></div>
+<div class="prog" id="prog"><i></i><i></i><i></i><i></i><i></i></div>
+<p class="paso" id="paso"></p><h1 id="titulo"></h1>
+<p id="sinCat" class="msg err" hidden>Aún no hay catálogos descargados. Conéctate a internet una vez para descargarlos.</p>
+
+<form id="f" autocomplete="off" onsubmit="return false">
+<section class="step">
+<div class="f"><label for="equipo">Equipo</label><input type="text" id="equipo" name="equipo" list="eq" placeholder="Busca por patente o ID"><datalist id="eq"></datalist></div>
+<fieldset class="f"><legend>Tipo de informe</legend><div class="seg"><label><input type="radio" name="tipo" value="Falla"><span>Falla</span></label><label><input type="radio" name="tipo" value="Mantención preventiva"><span>Mantención preventiva</span></label><label><input type="radio" name="tipo" value="Inspección"><span>Inspección</span></label></div></fieldset>
+<div class="f"><label for="horo">Horómetro u odómetro</label><input type="text" id="horo" name="horo" inputmode="decimal" placeholder="Ej.: 12.450,5"><p class="hint">Los miles se separan solos. Para decimales usa coma.</p></div>
+<p class="auto" id="auto"></p>
+</section>
+
+<section class="step">
+<div class="f"><label for="sis">Sistema afectado</label><select id="sis" name="sis"></select></div>
+<div class="f"><label for="comp">Componente</label><select id="comp" name="comp"></select></div>
+<div class="f"><label for="sint">Síntoma o modo de falla</label><select id="sint" name="sint"></select></div>
+<fieldset class="f"><legend>Condición del equipo</legend><div class="seg"><label><input type="radio" name="condicion" value="Operativo"><span>Operativo</span></label><label><input type="radio" name="condicion" value="Operativo con restricción"><span>Con restricción</span></label><label><input type="radio" name="condicion" value="Detenido"><span>Detenido</span></label></div></fieldset>
+<div class="f"><label for="desc">Descripción breve</label><textarea id="desc" name="desc" placeholder="¿Qué se observó? Puedes dictarlo con el micrófono del teclado."></textarea></div>
+</section>
+
+<section class="step">
+<fieldset class="f"><legend>Tipo de intervención</legend><div class="seg"><label><input type="radio" name="interv" value="Correctiva"><span>Correctiva</span></label><label><input type="radio" name="interv" value="Preventiva"><span>Preventiva</span></label><label><input type="radio" name="interv" value="Otra"><span>Otra</span></label></div></fieldset>
+<div class="f"><label for="causa">Causa probable</label><select id="causa" name="causa"></select></div>
+<div class="f"><label for="acc">Acciones realizadas</label><textarea id="acc" name="acc"></textarea></div>
+<div class="f"><span class="lbl">Repuestos e insumos</span><div id="reps"></div><button type="button" class="lnk" id="addrep">Agregar repuesto</button></div>
+<div class="two f"><div><label class="lbl" for="ini">Hora de inicio</label><input type="time" id="ini" name="ini"></div><div><label class="lbl" for="fin">Hora de término</label><input type="time" id="fin" name="fin"></div></div>
+</section>
+
+<section class="step">
+<div class="slots" id="slots"></div>
+<input type="file" id="cam" accept="image/*" capture="environment" hidden>
+<input type="file" id="fotos" accept="image/*" multiple hidden>
+<button type="button" class="lnk" id="addfoto">Elegir de la galería</button>
+<p class="hint">Toca un recuadro para tomar la foto. Si ya hay una, volver a tocarla la reemplaza. La galería llena los recuadros vacíos.</p>
+</section>
+
+<section class="step">
+<fieldset class="f"><legend>Estado final del equipo</legend><div class="seg"><label><input type="radio" name="final" value="Operativo"><span>Operativo</span></label><label><input type="radio" name="final" value="Operativo con restricción"><span>Con restricción</span></label><label><input type="radio" name="final" value="Detenido"><span>Detenido</span></label></div></fieldset>
+<div class="f"><label for="pend">Pendientes o recomendaciones</label><textarea id="pend" name="pend"></textarea></div>
+<div id="msg" role="status"></div>
+<button type="button" class="lnk" id="nuevo" hidden>Empezar un informe nuevo</button>
+</section>
+</form>
+
+<nav class="nav"><div><button type="button" id="back">Atrás</button><button type="button" id="next">Siguiente</button></div></nav>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.99.3/dist/umd/supabase.js" crossorigin="anonymous"></script>
+<script>
+const SB_URL="https://ckhbqzgwiwpurksiozmp.supabase.co",SB_KEY="sb_publishable_EKB3E3CfxCm-9YuTKPiAaQ__RX9G_y7";
+const db=supabase.createClient(SB_URL,SB_KEY);
+const $=q=>document.querySelector(q),$$=q=>[...document.querySelectorAll(q)];
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const T=["Equipo","Qué ocurrió","Qué se hizo","Evidencias","Cierre"],LAB=["Antes","Después","Componente dañado","Otra"],NF=4;
+let s=0,cat=null,uid=null,fotos=Array(NF).fill(null),labels=[...LAB],tgt=0,busy=false;
+
+/* Cola local (IndexedDB): los informes se guardan aquí hasta que se confirma el envío */
+const idb=()=>new Promise((ok,no)=>{const r=indexedDB.open("informes",1);r.onupgradeneeded=()=>r.result.createObjectStore("out",{keyPath:"id"});r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)});
+const tx=async(m,f)=>{const d=await idb();return new Promise((ok,no)=>{const t=d.transaction("out",m),q=f(t.objectStore("out"));t.oncomplete=()=>ok(q&&q.result);t.onerror=()=>no(t.error)})};
+const put=r=>tx("readwrite",o=>o.put(r)),del=id=>tx("readwrite",o=>o.delete(id)),all=()=>tx("readonly",o=>o.getAll());
+
+/* Sesión */
+async function init(){
+  const {data:{session}}=await db.auth.getSession();
+  if(session){uid=session.user.id;localStorage.setItem("uid",uid)}else if(!navigator.onLine)uid=localStorage.getItem("uid");
+  uid?entrar():$("#login").hidden=false}
+async function entrar(){$("#login").hidden=true;$("#app").hidden=false;await cargarCat();pintar();cargarB();show(0);chip();sync()}
+$("#ingresar").onclick=async()=>{
+  const {data,error}=await db.auth.signInWithPassword({email:$("#em").value.trim(),password:$("#pw").value}),e=$("#lerr");
+  if(error){e.hidden=false;e.textContent=navigator.onLine?"Correo o contraseña incorrectos.":"Sin conexión. La primera vez necesitas internet.";return}
+  e.hidden=true;uid=data.user.id;localStorage.setItem("uid",uid);entrar()};
+$("#salir").onclick=async()=>{if(!confirm("¿Cerrar sesión? Los informes pendientes se enviarán cuando vuelvas a ingresar."))return;
+  await db.auth.signOut();localStorage.removeItem("uid");localStorage.removeItem("borrador");location.reload()};
+
+/* Catálogos: se descargan con conexión y se guardan para usarlos sin ella */
+async function cargarCat(){
+  try{const t=["equipos","sistemas","componentes","sintomas","causas"],r=await Promise.all(t.map(x=>db.from(x).select("*").order(x==="equipos"?"codigo":"nombre")));
+    if(!r.some(x=>x.error)){cat=Object.fromEntries(t.map((x,i)=>[x,r[i].data]));localStorage.setItem("cat",JSON.stringify(cat))}}catch(e){}
+  cat=cat||JSON.parse(localStorage.getItem("cat")||"null")}
+const opt=(el,a)=>{el.innerHTML=a.map(x=>`<option value="${x.id}">${esc(x.nombre)}</option>`).join("")};
+const comp=()=>opt($("#comp"),cat.componentes.filter(c=>c.sistema_id==$("#sis").value));
+function pintar(){
+  $("#sinCat").hidden=!!cat;if(!cat)return;
+  $("#eq").innerHTML=cat.equipos.filter(e=>e.activo).map(e=>`<option value="${esc(e.codigo+" · "+e.descripcion)}">`).join("");
+  opt($("#sis"),cat.sistemas);opt($("#sint"),cat.sintomas);opt($("#causa"),cat.causas);comp()}
+$("#sis").addEventListener("change",()=>cat&&comp());
+
+/* Navegación */
+function show(n){s=n;$$(".step").forEach((e,i)=>e.classList.toggle("on",i===n));$$("#prog i").forEach((e,i)=>e.classList.toggle("on",i<=n));
+  $("#paso").textContent="Paso "+(n+1)+" de 5";$("#titulo").textContent=T[n];$("#back").disabled=n===0;$("#next").textContent=n===4?"Guardar y enviar":"Siguiente";
+  $("#auto").textContent="Fecha y hora: "+new Date().toLocaleString("es-CL",{dateStyle:"medium",timeStyle:"short"})+" · El técnico se toma de tu sesión";window.scrollTo(0,0)}
+$("#back").onclick=()=>show(s-1);$("#next").onclick=()=>s<4?show(s+1):guardar();
+const msg=(t,c)=>{const m=$("#msg");m.className="msg "+c;m.textContent=t};
+async function chip(){const n=(await all()).filter(r=>r.uid===uid).length,c=$("#chip");c.className="chip"+(n?" pending":"");c.textContent=n?"Pendiente de enviar: "+n:(navigator.onLine?"Todo enviado":"Sin conexión")}
+
+/* Horómetro con separador de miles */
+const fmtHoro=v=>{v=v.replace(/[^\d,]/g,"");const i=v.indexOf(",");let e=i<0?v:v.slice(0,i);const d=i<0?null:v.slice(i+1).replace(/,/g,"").slice(0,1);e=e.replace(/^0+(?=\d)/,"");if(e===""&&d!==null)e="0";e=e.replace(/\B(?=(\d{3})+(?!\d))/g,".");return d===null?e:e+","+d};
+$("#horo").addEventListener("input",e=>{const el=e.target,n=el.value.slice(0,el.selectionStart).replace(/[^\d,]/g,"").length;el.value=fmtHoro(el.value);let c=0,q=0;while(q<el.value.length&&c<n){if(/[\d,]/.test(el.value[q]))c++;q++}el.setSelectionRange(q,q)});
+
+/* Borrador del formulario (se conserva si se cierra la app) */
+const guardarB=()=>{try{const d={};$$("#f [name]").forEach(e=>{if(e.type==="radio"){if(e.checked)d[e.name]=e.value}else d[e.name]=e.value});localStorage.setItem("borrador",JSON.stringify(d))}catch(e){}};
+function cargarB(){try{const d=JSON.parse(localStorage.getItem("borrador")||"null");if(!d)return;
+  $$("#f [name]").forEach(e=>{if(!(e.name in d))return;if(e.type==="radio")e.checked=d[e.name]===e.value;else e.value=d[e.name]});
+  if(cat){comp();if(d.comp)$("#comp").value=d.comp}}catch(e){}}
+$("#f").addEventListener("input",guardarB);$("#f").addEventListener("change",guardarB);
+
+/* Repuestos y fotos */
+$("#addrep").onclick=()=>{const r=document.createElement("div");r.className="rep";r.innerHTML=`<input type="text" aria-label="Código del repuesto" placeholder="Código"><input type="number" aria-label="Cantidad" placeholder="Cant." min="1" inputmode="numeric"><button type="button" aria-label="Quitar repuesto">Quitar</button>`;r.querySelector("button").onclick=()=>r.remove();$("#reps").append(r)};
+const comprimir=f=>new Promise(ok=>{const i=new Image();i.onload=()=>{const k=Math.min(1,1600/Math.max(i.width,i.height)),c=document.createElement("canvas");c.width=Math.round(i.width*k);c.height=Math.round(i.height*k);c.getContext("2d").drawImage(i,0,0,c.width,c.height);URL.revokeObjectURL(i.src);c.toBlob(ok,"image/jpeg",.7)};i.src=URL.createObjectURL(f)});
+function pintFotos(){const g=$("#slots");g.innerHTML="";fotos.forEach((u,i)=>{const d=document.createElement("div");d.className="slot";
+  d.innerHTML=`<button type="button" class="tile${u?" has":""}" aria-label="Foto ${i+1}">${u?`<img alt="Foto ${i+1}">`:`<span>Foto ${i+1}<br>Toca para tomar</span>`}</button><select aria-label="Tipo de foto ${i+1}">${LAB.map(x=>`<option${x===labels[i]?" selected":""}>${x}</option>`).join("")}</select>`;
+  if(u)d.querySelector("img").src=u.url;d.querySelector("button").onclick=()=>{tgt=i;$("#cam").click()};d.querySelector("select").onchange=e=>{labels[i]=e.target.value};g.append(d)})}
+$("#cam").addEventListener("change",async e=>{const f=e.target.files[0];e.target.value="";if(!f)return;const b=await comprimir(f);fotos[tgt]={blob:b,url:URL.createObjectURL(b)};pintFotos()});
+$("#addfoto").onclick=()=>$("#fotos").click();
+$("#fotos").addEventListener("change",async e=>{const fs=[...e.target.files];e.target.value="";for(const f of fs){const i=fotos.indexOf(null);if(i<0)break;const b=await comprimir(f);fotos[i]={blob:b,url:URL.createObjectURL(b)}}pintFotos()});
+pintFotos();
+
+/* Guardar en el equipo y enviar */
+async function guardar(){
+  const f=$("#f"),v=n=>f.elements[n].value,rad=n=>(f.querySelector(`[name=${n}]:checked`)||{}).value;
+  const eq=cat&&cat.equipos.find(e=>e.codigo+" · "+e.descripcion===v("equipo").trim()),falta=[];
+  if(!eq)falta.push("un equipo de la lista");if(!rad("tipo"))falta.push("el tipo de informe");if(!rad("condicion"))falta.push("la condición del equipo");
+  if(!v("desc").trim())falta.push("la descripción");if(!v("ini"))falta.push("la hora de inicio");if(!v("fin"))falta.push("la hora de término");
+  if(falta.length)return msg("Falta completar: "+falta.join(", ")+".","err");
+  const hoy=new Date(),h=t=>{const[a,b]=t.split(":"),d=new Date(hoy);d.setHours(+a,+b,0,0);return d},ini=h(v("ini"));let fin=h(v("fin"));if(fin<ini)fin=new Date(fin.getTime()+864e5);
+  const id=crypto.randomUUID(),horo=v("horo")?parseFloat(v("horo").replace(/\./g,"").replace(",",".")):null;
+  const informe={id,equipo_id:eq.id,tipo:rad("tipo"),horometro:isNaN(horo)?null:horo,fecha_hora:hoy.toISOString(),sistema_id:+v("sis")||null,componente_id:+v("comp")||null,sintoma_id:+v("sint")||null,condicion:rad("condicion"),descripcion:v("desc").trim(),intervencion:rad("interv")||null,causa_id:+v("causa")||null,acciones:v("acc").trim()||null,inicio_at:ini.toISOString(),fin_at:fin.toISOString(),estado_final:rad("final")||null,pendientes:v("pend").trim()||null};
+  const repuestos=$$("#reps .rep").map(r=>{const i=r.querySelectorAll("input");return{id:crypto.randomUUID(),informe_id:id,codigo:i[0].value.trim(),cantidad:parseFloat(i[1].value)}}).filter(r=>r.codigo&&r.cantidad>0);
+  const fts=fotos.map((x,i)=>x&&{id:crypto.randomUUID(),blob:x.blob,etiqueta:labels[i],orden:i}).filter(Boolean);
+  await put({id,uid,informe,repuestos,fotos:fts});
+  localStorage.removeItem("borrador");$("#nuevo").hidden=false;$("#next").disabled=true;
+  msg(navigator.onLine?"Informe guardado. Enviando…":"Informe guardado en el equipo. Se enviará solo cuando vuelva la conexión.","pending");
+  chip();sync()}
+$("#nuevo").onclick=()=>{$("#f").reset();fotos.fill(null);labels=[...LAB];$("#reps").innerHTML="";if(cat)comp();pintFotos();$("#msg").className="";$("#msg").textContent="";$("#nuevo").hidden=true;$("#next").disabled=false;show(0)};
+
+/* Sincronización: cada paso es repetible sin duplicar datos (ids generados en el equipo) */
+async function enviar(r){
+  const ck=x=>{if(x.error)throw new Error(x.error.message);return x},opc={onConflict:"id",ignoreDuplicates:true};
+  ck(await db.from("informes").upsert(r.informe,opc));
+  if(r.repuestos.length)ck(await db.from("informe_repuestos").upsert(r.repuestos,opc));
+  for(const f of r.fotos){const u=await db.storage.from("fotos").upload(`${r.id}/${f.id}.jpg`,f.blob,{contentType:"image/jpeg"});if(u.error&&!/exist|duplicate/i.test(u.error.message))throw new Error(u.error.message)}
+  if(r.fotos.length)ck(await db.from("informe_fotos").upsert(r.fotos.map(f=>({id:f.id,informe_id:r.id,ruta:`${r.id}/${f.id}.jpg`,etiqueta:f.etiqueta,orden:f.orden})),opc))}
+async function sync(){
+  if(busy||!navigator.onLine||!uid)return;busy=true;let ok=0;
+  try{const {data:{session}}=await db.auth.getSession();if(!session){$("#app").hidden=true;$("#login").hidden=false;return}
+    for(const r of (await all()).filter(x=>x.uid===session.user.id)){
+      try{await enviar(r);await del(r.id);ok++}catch(e){r.error=e.message||String(e);await put(r);if(!$("#nuevo").hidden)msg("No se pudo enviar todavía ("+r.error+"). Se reintentará solo.","pending");break}}
+  }finally{busy=false;chip();if(ok&&!$("#nuevo").hidden)msg("Informe enviado al supervisor.","sent")}}
+addEventListener("online",()=>{chip();sync()});addEventListener("offline",chip);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)sync()});setInterval(sync,30000);
+
+if("serviceWorker"in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js"));
+init();
+</script>
+</body>
+</html>
