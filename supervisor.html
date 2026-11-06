@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Panel del supervisor</title>
+<link rel="icon" href="icon-192.png">
+<style>
+:root{--bg:#ECEDEA;--panel:#fff;--ink:#1B2127;--mute:#5B646C;--line:#C4C8C3;--acc:#F2C200;--ok:#1F7A4D;--warn:#9A5200;--err:#B3261E;--sel:#1B2127;box-sizing:border-box}
+@media (prefers-color-scheme:dark){:root{--bg:#14181C;--panel:#1E242A;--ink:#EEF0EC;--mute:#9AA3AB;--line:#3A444D;--ok:#4CC38A;--warn:#F0A04B;--err:#FF8A80;--sel:#EEF0EC}}
+*,*::before,*::after{box-sizing:inherit}[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:960px;margin:0 auto;padding:20px 16px 60px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+h1{margin:0 0 16px;font:800 34px/1.05 "Arial Narrow","Roboto Condensed",system-ui,sans-serif;box-shadow:inset 0 -.32em 0 var(--acc);display:inline-block}
+h2{margin:0 0 6px;font-size:22px}a{color:var(--ink)}
+button,select,input,textarea{font:inherit;color:var(--ink)}
+button{min-height:44px;padding:0 16px;border-radius:6px;border:2px solid var(--sel);background:var(--panel);font-weight:600;cursor:pointer}
+button.pri{background:var(--acc);border-color:var(--acc);color:#1B2127}
+select,input,textarea{min-height:44px;padding:8px 12px;background:var(--panel);border:2px solid var(--line);border-radius:6px}
+textarea{width:100%;min-height:90px}
+:is(button,select,input,textarea):focus-visible{outline:3px solid var(--sel);outline-offset:2px}
+.filtros{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}.filtros input{flex:1;min-width:200px}
+.fila{display:grid;grid-template-columns:150px 1fr 1fr auto;gap:12px;align-items:center;width:100%;text-align:left;min-height:56px;margin-bottom:8px;border-color:var(--line)}
+.fila:hover{border-color:var(--sel)}
+.st{font-style:normal;font-weight:600;font-size:14px;padding:3px 10px;border-radius:999px;border:2px solid var(--line);display:inline-block;margin:0}
+.st.enviado{border-color:var(--sel)}.st.en_revision{border-color:var(--warn);color:var(--warn)}.st.aprobado{border-color:var(--ok);color:var(--ok)}.st.observado{border-color:var(--err);color:var(--err)}
+.msg{padding:14px;border-left:8px solid var(--err);background:var(--panel);margin:0 0 16px}.hint{color:var(--mute)}
+dl{display:grid;grid-template-columns:200px 1fr;gap:6px 16px;margin:12px 0}dt{font-weight:600;color:var(--mute)}dd{margin:0;white-space:pre-wrap}
+#fotos{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin:16px 0}
+figure{margin:0}figure img{width:100%;border-radius:6px;display:block}figcaption{font-size:14px;color:var(--mute)}
+.rev{border-top:2px solid var(--line);padding-top:16px;margin-top:16px}.acciones{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+@media (max-width:640px){.fila{grid-template-columns:1fr}dl{grid-template-columns:1fr}}
+@media print{body{background:#fff;color:#000}.noimp{display:none!important}.wrap{padding:0}figure{break-inside:avoid}#fotos{grid-template-columns:1fr 1fr}dt{color:#444}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="row noimp"><h1>Informes recibidos</h1><div><a href="index.html">Ir a la app</a> <button id="salir">Salir</button></div></div>
+<p id="aviso" class="msg noimp" hidden></p>
+
+<section id="lista" hidden>
+<div class="filtros">
+<select id="fe"><option value="">Todos los estados</option><option value="enviado">Enviado</option><option value="en_revision">En revisión</option><option value="observado">Observado</option><option value="aprobado">Aprobado</option></select>
+<input id="ft" type="search" placeholder="Buscar por equipo o técnico">
+<button id="rec">Actualizar</button>
+</div>
+<div id="filas"></div>
+</section>
+
+<section id="det" hidden>
+<button id="volver" class="noimp">← Volver a la bandeja</button>
+<div id="ficha"></div>
+<div id="fotos"></div>
+<div class="rev noimp">
+<label for="coment"><b>Comentario de revisión</b></label>
+<textarea id="coment" placeholder="Obligatorio si marcas el informe como observado."></textarea>
+<div class="acciones">
+<button data-e="en_revision">Marcar en revisión</button>
+<button data-e="observado">Observado</button>
+<button data-e="aprobado" class="pri">Aprobar</button>
+<button id="imp">Imprimir / guardar PDF</button>
+</div>
+</div>
+</section>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.99.3/dist/umd/supabase.js" crossorigin="anonymous"></script>
+<script>
+const db=supabase.createClient("https://ckhbqzgwiwpurksiozmp.supabase.co","sb_publishable_EKB3E3CfxCm-9YuTKPiAaQ__RX9G_y7");
+const $=q=>document.querySelector(q),$$=q=>[...document.querySelectorAll(q)];
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const ES={enviado:"Enviado",en_revision:"En revisión",aprobado:"Aprobado",observado:"Observado"};
+const fh=d=>d?new Date(d).toLocaleString("es-CL",{dateStyle:"medium",timeStyle:"short"}):"";
+const aviso=h=>{const a=$("#aviso");a.hidden=!h;a.innerHTML=h||""};
+const SEL="*,equipo:equipos(codigo,descripcion),tecnico:perfiles!tecnico_id(nombre),sistema:sistemas(nombre),componente:componentes(nombre),sintoma:sintomas(nombre),causa:causas(nombre),repuestos:informe_repuestos(codigo,cantidad),fotos:informe_fotos(ruta,etiqueta,orden)";
+let data=[],yo=null,cur=null;
+
+async function init(){
+  const {data:{session}}=await db.auth.getSession();
+  if(!session)return aviso('Primero ingresa en <a href="index.html">la app</a> con tu usuario y vuelve a esta página.');
+  const p=await db.from("perfiles").select("rol").eq("id",session.user.id).single();
+  if(!p.data||!["supervisor","planificador"].includes(p.data.rol))return aviso("Esta página es solo para supervisores y planificadores.");
+  yo=session.user.id;$("#lista").hidden=false;cargar()}
+async function cargar(){
+  const r=await db.from("informes").select(SEL).order("fecha_hora",{ascending:false}).limit(300);
+  if(r.error)return aviso("No se pudieron cargar los informes: "+esc(r.error.message));
+  aviso("");data=r.data;pintar()}
+function pintar(){
+  const e=$("#fe").value,t=$("#ft").value.toLowerCase();
+  const a=data.filter(i=>(!e||i.estado===e)&&(!t||(i.equipo.codigo+" "+i.equipo.descripcion+" "+(i.tecnico?.nombre||"")).toLowerCase().includes(t)));
+  $("#filas").innerHTML=a.length?a.map(i=>`<button class="fila" data-id="${i.id}"><b>${esc(i.equipo.codigo)}</b><span>${esc(i.tipo)} · ${esc(i.condicion)}</span><span>${fh(i.fecha_hora)} · ${esc(i.tecnico?.nombre)}</span><em class="st ${i.estado}">${ES[i.estado]}</em></button>`).join(""):'<p class="hint">No hay informes con esos filtros.</p>';
+  $$(".fila").forEach(b=>b.onclick=()=>abrir(b.dataset.id))}
+async function abrir(id){
+  cur=data.find(i=>i.id===id);const i=cur;$("#lista").hidden=true;$("#det").hidden=false;window.scrollTo(0,0);
+  const dl=(k,v)=>v?`<dt>${k}</dt><dd>${esc(v)}</dd>`:"";
+  $("#ficha").innerHTML=`<h2>${esc(i.equipo.codigo)} · ${esc(i.equipo.descripcion)}</h2><p class="st ${i.estado}">${ES[i.estado]}</p><dl>`
+   +dl("Tipo",i.tipo)+dl("Fecha",fh(i.fecha_hora))+dl("Técnico",i.tecnico?.nombre)+dl("Horómetro u odómetro",i.horometro!=null?Number(i.horometro).toLocaleString("es-CL"):"")
+   +dl("Sistema",i.sistema?.nombre)+dl("Componente",i.componente?.nombre)+dl("Síntoma",i.sintoma?.nombre)+dl("Condición",i.condicion)+dl("Descripción",i.descripcion)
+   +dl("Intervención",i.intervencion)+dl("Causa probable",i.causa?.nombre)+dl("Acciones",i.acciones)+dl("Inicio",fh(i.inicio_at))+dl("Término",fh(i.fin_at))
+   +dl("Estado final",i.estado_final)+dl("Pendientes",i.pendientes)+dl("Repuestos",i.repuestos.map(r=>r.codigo+" × "+r.cantidad).join(", "))
+   +dl("Comentario de revisión",i.comentario_revision)+"</dl>";
+  $("#coment").value=i.comentario_revision||"";$("#fotos").innerHTML="";
+  const f=[...i.fotos].sort((a,b)=>a.orden-b.orden);
+  if(f.length){const s=await db.storage.from("fotos").createSignedUrls(f.map(x=>x.ruta),3600);
+    $("#fotos").innerHTML=f.map((x,k)=>{const u=s.data&&s.data[k]&&s.data[k].signedUrl;return u?`<figure><img src="${u}" alt="${esc(x.etiqueta)}"><figcaption>${esc(x.etiqueta)}</figcaption></figure>`:""}).join("")}}
+async function revisar(est){
+  const c=$("#coment").value.trim();
+  if(est==="observado"&&!c)return aviso("Escribe un comentario para que el técnico sepa qué corregir.");
+  const r=await db.from("informes").update({estado:est,comentario_revision:c||null,revisado_por:yo,revisado_at:new Date().toISOString()}).eq("id",cur.id).select("estado,comentario_revision");
+  if(r.error||!r.data.length)return aviso("No se pudo guardar: "+esc(r.error?r.error.message:"sin permiso"));
+  aviso("");Object.assign(cur,r.data[0]);abrir(cur.id)}
+$$("[data-e]").forEach(b=>b.onclick=()=>revisar(b.dataset.e));
+$("#imp").onclick=()=>window.print();
+$("#volver").onclick=()=>{$("#det").hidden=true;$("#lista").hidden=false;aviso("");pintar()};
+$("#fe").onchange=pintar;$("#ft").oninput=pintar;$("#rec").onclick=cargar;
+$("#salir").onclick=async()=>{await db.auth.signOut();localStorage.removeItem("uid");location.reload()};
+init();
+</script>
+</body>
+</html>
