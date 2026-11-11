@@ -53,9 +53,19 @@ figure{margin:0}figure img{width:100%;border-radius:6px;display:block}figcaption
 .rev{border-top:2px solid var(--line);padding-top:16px;margin-top:16px}.acciones{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
 @media (max-width:640px){.fila{grid-template-columns:1fr}dl{grid-template-columns:1fr}}
 @media print{body{background:#fff;color:#000}.noimp{display:none!important}.wrap{padding:0}figure{break-inside:avoid}#sfotos{grid-template-columns:1fr 1fr}dt{color:#444}}
-.tabs{display:flex;gap:8px;margin:14px 0 0}.tabs button{flex:1;min-height:48px;padding:0 8px}.tabs button.on{background:var(--sel);color:var(--on-sel)}
+.tabs{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 0}.tabs button{flex:1 1 auto;min-height:48px;padding:0 8px}.tabs button.on{background:var(--sel);color:var(--on-sel)}
 .wrap.ancho{max-width:960px}.filtros select,.filtros input,.filtros button{width:auto}.filtros input{flex:1;min-width:200px}.acciones button.pri{width:auto}
 #vBandeja h2{margin:18px 0 12px}#vBandeja .rev label{display:block;margin-bottom:6px}
+.tabs button{font-size:14px;line-height:1.1}
+.mi{background:var(--panel);border-left:8px solid var(--line);padding:12px 14px;margin-bottom:10px}.mi .msg{margin:10px 0 0}.st.pend{border-color:var(--warn);color:var(--warn)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:12px 0 20px}
+.kpi{background:var(--panel);border-left:8px solid var(--acc);padding:12px 14px}.kpi span{display:block;color:var(--mute);font-size:14px}.kpi b{font:800 32px/1.1 "Arial Narrow","Roboto Condensed",system-ui,sans-serif}
+#vInd h3{margin:22px 0 8px}#vMis h2,#vInd h2{margin:18px 0 12px}
+.pa{display:grid;grid-template-columns:minmax(90px,1.2fr) 3fr 36px 52px;gap:10px;align-items:center;margin-bottom:6px}.pa .bar{background:var(--line);height:14px;border-radius:2px;-webkit-print-color-adjust:exact;print-color-adjust:exact}.pa .bar i{display:block;height:100%;background:var(--acc);border-radius:2px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.tbl{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:15px}th,td{text-align:left;padding:8px 10px;border-bottom:2px solid var(--line)}th{color:var(--mute);font-weight:600}
+.solo-imp{display:none}@media print{.solo-imp{display:block}}
+#pdfAcc{display:contents}.mi .acciones button{min-height:44px}
+.mi .acciones select,.mi .acciones input{width:auto;min-height:44px}#plAgrBox{margin-bottom:14px}#plAgrBox .f{margin-bottom:12px}#vPlan h2{margin:18px 0 12px}
 </style>
 </head>
 <body>
@@ -71,11 +81,12 @@ figure{margin:0}figure img{width:100%;border-radius:6px;display:block}figcaption
 
 <div id="app" class="wrap" hidden>
 <div class="row noimp"><span id="chip" class="chip">…</span><button class="sm" id="salir">Salir</button></div>
-<div class="tabs noimp" id="tabs" hidden><button type="button" id="tInf" class="on">Nuevo informe</button><button type="button" id="tBan">Bandeja de informes</button></div>
+<div class="tabs noimp" id="tabs"><button type="button" id="tInf" class="on">Nuevo informe</button><button type="button" id="tMis">Mis informes</button><button type="button" id="tBan" hidden>Bandeja</button><button type="button" id="tInd" hidden>Indicadores</button><button type="button" id="tPla" hidden>Plan</button></div>
 <div id="vInforme">
 <div class="prog" id="prog"><i></i><i></i><i></i><i></i><i></i></div>
 <p class="paso" id="paso"></p><h1 id="titulo"></h1>
 <p id="sinCat" class="msg err" hidden>Aún no hay catálogos descargados. Conéctate a internet una vez para descargarlos.</p>
+<div id="corrBanner" class="msg err" hidden><span id="corrTxt"></span><div style="margin-top:10px"><button type="button" class="sm" id="corrCancel">Cancelar corrección</button></div></div>
 
 <form id="f" autocomplete="off" onsubmit="return false">
 <section class="step">
@@ -143,10 +154,35 @@ figure{margin:0}figure img{width:100%;border-radius:6px;display:block}figcaption
 <button data-e="en_revision">Marcar en revisión</button>
 <button data-e="observado">Observado</button>
 <button data-e="aprobado" class="pri">Aprobar</button>
-<button id="imp">Imprimir / guardar PDF</button>
+<span id="pdfAcc" hidden><button id="pdfDl" class="pri">Descargar PDF</button><button id="pdfPr">Imprimir</button></span><span id="pdfNo" class="hint">El PDF se habilita cuando el informe está aprobado.</span>
 </div>
 </div>
 </section>
+</div>
+<div id="vMis" hidden>
+<h2 class="noimp">Mis informes</h2>
+<p id="misAviso" class="msg noimp" hidden>Sin conexión: se muestra la última lista descargada. Los estados pueden haber cambiado.</p>
+<div id="misLista"></div>
+</div>
+<div id="vInd" hidden>
+<div class="row noimp"><h2>Indicadores</h2>
+<div class="filtros"><select id="iPer"><option value="30">Últimos 30 días</option><option value="90" selected>Últimos 90 días</option><option value="180">Últimos 180 días</option><option value="365">Últimos 12 meses</option></select>
+<select id="iDim"><option value="sistema">Pareto por sistema</option><option value="componente">Pareto por componente</option><option value="sintoma">Pareto por síntoma</option><option value="causa">Pareto por causa</option></select>
+<button id="iImp">Imprimir / PDF</button></div></div>
+<div id="iCont"></div>
+</div>
+<div id="vPlan" hidden>
+<h2>Plan preventivo</h2>
+<div class="kpis" id="plKpis"></div>
+<div class="filtros"><select id="plSem"><option value="">Todos los estados</option><option>Vencida</option><option>Por vencer</option><option>Al día</option><option>Sin fecha</option></select>
+<input id="plBus" type="search" placeholder="Buscar patente o tipo de equipo"><button id="plAgr">Agregar equipo al plan</button></div>
+<div id="plAgrBox" class="mi" hidden>
+<div class="f"><label for="plEq">Equipo</label><input type="text" id="plEq" list="eq" placeholder="Busca por patente o ID"></div>
+<div class="two f"><div><label class="lbl" for="plTipo">Última mantención</label><select id="plTipo"><option value="">Sin dato</option><option>A</option><option>B</option><option>C</option></select></div>
+<div><label class="lbl" for="plFecha">Fecha</label><input type="date" id="plFecha"></div></div>
+<button type="button" class="pri" id="plOk">Agregar al plan</button>
+</div>
+<div id="plLista"></div>
 </div>
 </div>
 
@@ -157,7 +193,7 @@ const db=supabase.createClient(SB_URL,SB_KEY);
 const $=q=>document.querySelector(q),$$=q=>[...document.querySelectorAll(q)];
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const T=["Equipo","Qué ocurrió","Qué se hizo","Evidencias","Cierre"],LAB=["Antes","Después","Componente dañado","Otra"],NF=4;
-let s=0,cat=null,uid=null,fotos=Array(NF).fill(null),labels=[...LAB],tgt=0,busy=false;
+let edit=null,s=0,cat=null,uid=null,fotos=Array(NF).fill(null),labels=[...LAB],tgt=0,busy=false;
 
 /* Cola local (IndexedDB): los informes se guardan aquí hasta que se confirma el envío */
 const idb=()=>new Promise((ok,no)=>{const r=indexedDB.open("informes",1);r.onupgradeneeded=()=>r.result.createObjectStore("out",{keyPath:"id"});r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)});
@@ -183,16 +219,16 @@ async function cargarCat(){
     if(!r.some(x=>x.error)){cat=Object.fromEntries(t.map((x,i)=>[x,r[i].data]));localStorage.setItem("cat",JSON.stringify(cat))}}catch(e){}
   cat=cat||JSON.parse(localStorage.getItem("cat")||"null")}
 const opt=(el,a)=>{el.innerHTML=a.map(x=>`<option value="${x.id}">${esc(x.nombre)}</option>`).join("")};
-const comp=()=>opt($("#comp"),cat.componentes.filter(c=>c.sistema_id==$("#sis").value));
+const comp=()=>opt($("#comp"),cat.componentes.filter(c=>c.activo!==false&&c.sistema_id==$("#sis").value));
 function pintar(){
   $("#sinCat").hidden=!!cat;if(!cat)return;
   $("#eq").innerHTML=cat.equipos.filter(e=>e.activo).map(e=>`<option value="${esc(e.codigo+" · "+e.descripcion)}">`).join("");
-  opt($("#sis"),cat.sistemas);opt($("#sint"),cat.sintomas);opt($("#causa"),cat.causas);comp()}
+  opt($("#sis"),cat.sistemas.filter(x=>x.activo!==false));opt($("#sint"),cat.sintomas);opt($("#causa"),cat.causas);comp()}
 $("#sis").addEventListener("change",()=>cat&&comp());
 
 /* Navegación */
 function show(n){s=n;$$(".step").forEach((e,i)=>e.classList.toggle("on",i===n));$$("#prog i").forEach((e,i)=>e.classList.toggle("on",i<=n));
-  $("#paso").textContent="Paso "+(n+1)+" de 5";$("#titulo").textContent=T[n];$("#back").disabled=n===0;$("#next").textContent=n===4?"Guardar y enviar":"Siguiente";
+  $("#paso").textContent="Paso "+(n+1)+" de 5";$("#titulo").textContent=T[n];$("#back").disabled=n===0;$("#next").textContent=n===4?(edit?"Guardar corrección y reenviar":"Guardar y enviar"):"Siguiente";
   $("#auto").textContent="Fecha y hora: "+new Date().toLocaleString("es-CL",{dateStyle:"medium",timeStyle:"short"})+" · El técnico se toma de tu sesión";window.scrollTo(0,0)}
 $("#back").onclick=()=>show(s-1);$("#next").onclick=()=>s<4?show(s+1):guardar();
 const msg=(t,c)=>{const m=$("#msg");m.className="msg "+c;m.textContent=t};
@@ -203,7 +239,7 @@ const fmtHoro=v=>{v=v.replace(/[^\d,]/g,"");const i=v.indexOf(",");let e=i<0?v:v
 $("#horo").addEventListener("input",e=>{const el=e.target,n=el.value.slice(0,el.selectionStart).replace(/[^\d,]/g,"").length;el.value=fmtHoro(el.value);let c=0,q=0;while(q<el.value.length&&c<n){if(/[\d,]/.test(el.value[q]))c++;q++}el.setSelectionRange(q,q)});
 
 /* Borrador del formulario (se conserva si se cierra la app) */
-const guardarB=()=>{try{const d={};$$("#f [name]").forEach(e=>{if(e.type==="radio"){if(e.checked)d[e.name]=e.value}else d[e.name]=e.value});localStorage.setItem("borrador",JSON.stringify(d))}catch(e){}};
+const guardarB=()=>{if(edit)return;try{const d={};$$("#f [name]").forEach(e=>{if(e.type==="radio"){if(e.checked)d[e.name]=e.value}else d[e.name]=e.value});localStorage.setItem("borrador",JSON.stringify(d))}catch(e){}};
 function cargarB(){try{const d=JSON.parse(localStorage.getItem("borrador")||"null");if(!d)return;
   $$("#f [name]").forEach(e=>{if(!(e.name in d))return;if(e.type==="radio")e.checked=d[e.name]===e.value;else e.value=d[e.name]});
   if(cat){comp();if(d.comp)$("#comp").value=d.comp}}catch(e){}}
@@ -228,11 +264,15 @@ async function guardar(){
   if(!v("desc").trim())falta.push("la descripción");if(!v("ini"))falta.push("la hora de inicio");if(!v("fin"))falta.push("la hora de término");
   if(falta.length)return msg("Falta completar: "+falta.join(", ")+".","err");
   const hoy=new Date(),h=t=>{const[a,b]=t.split(":"),d=new Date(hoy);d.setHours(+a,+b,0,0);return d},ini=h(v("ini"));let fin=h(v("fin"));if(fin<ini)fin=new Date(fin.getTime()+864e5);
-  const id=crypto.randomUUID(),horo=v("horo")?parseFloat(v("horo").replace(/\./g,"").replace(",",".")):null;
-  const informe={id,equipo_id:eq.id,tipo:rad("tipo"),horometro:isNaN(horo)?null:horo,fecha_hora:hoy.toISOString(),sistema_id:+v("sis")||null,componente_id:+v("comp")||null,sintoma_id:+v("sint")||null,condicion:rad("condicion"),descripcion:v("desc").trim(),intervencion:rad("interv")||null,causa_id:+v("causa")||null,acciones:v("acc").trim()||null,inicio_at:ini.toISOString(),fin_at:fin.toISOString(),estado_final:rad("final")||null,pendientes:v("pend").trim()||null};
+  const id=edit?edit.id:crypto.randomUUID(),horo=v("horo")?parseFloat(v("horo").replace(/\./g,"").replace(",",".")):null;
+  const informe={id,equipo_id:eq.id,tipo:rad("tipo"),horometro:isNaN(horo)?null:horo,fecha_hora:edit?edit.fecha_hora:hoy.toISOString(),sistema_id:+v("sis")||null,componente_id:+v("comp")||null,sintoma_id:+v("sint")||null,condicion:rad("condicion"),descripcion:v("desc").trim(),intervencion:rad("interv")||null,causa_id:+v("causa")||null,acciones:v("acc").trim()||null,inicio_at:ini.toISOString(),fin_at:fin.toISOString(),estado_final:rad("final")||null,pendientes:v("pend").trim()||null};
   const repuestos=$$("#reps .rep").map(r=>{const i=r.querySelectorAll("input");return{id:crypto.randomUUID(),informe_id:id,codigo:i[0].value.trim(),cantidad:parseFloat(i[1].value)}}).filter(r=>r.codigo&&r.cantidad>0);
-  const fts=fotos.map((x,i)=>x&&{id:crypto.randomUUID(),blob:x.blob,etiqueta:labels[i],orden:i}).filter(Boolean);
-  await put({id,uid,informe,repuestos,fotos:fts});
+  const orig=edit?edit.fotos:[],orgPor=Object.fromEntries(orig.map(o=>[o.id,o]));
+  const iguales=x=>{const k=fotos.indexOf(x);return !!(x&&x.fid&&orgPor[x.fid]&&orgPor[x.fid].etiqueta===labels[k]&&orgPor[x.fid].orden===k)};
+  const fts=fotos.map((x,i)=>x&&!iguales(x)&&{id:crypto.randomUUID(),blob:x.blob,etiqueta:labels[i],orden:i}).filter(Boolean);
+  const quitar=orig.filter(o=>!fotos.some(x=>x&&x.fid===o.id&&iguales(x))).map(o=>({id:o.id,ruta:o.ruta}));
+  await put({id,uid,informe,repuestos,fotos:fts,corr:!!edit,quitar});
+  if(edit){edit=null;$("#corrBanner").hidden=true}
   localStorage.removeItem("borrador");$("#nuevo").hidden=false;$("#next").disabled=true;
   msg(navigator.onLine?"Informe guardado. Enviando…":"Informe guardado en el equipo. Se enviará solo cuando vuelva la conexión.","pending");
   chip();sync()}
@@ -241,25 +281,86 @@ $("#nuevo").onclick=()=>{$("#f").reset();fotos.fill(null);labels=[...LAB];$("#re
 /* Sincronización: cada paso es repetible sin duplicar datos (ids generados en el equipo) */
 async function enviar(r){
   const ck=x=>{if(x.error)throw new Error(x.error.message);return x},opc={onConflict:"id",ignoreDuplicates:true};
-  ck(await db.from("informes").upsert(r.informe,opc));
+  if(r.corr){ /* corrección: primero se quita lo reemplazado (solo se puede mientras el informe sigue observado) */
+    ck(await db.from("informe_repuestos").delete().eq("informe_id",r.id));
+    for(const q of r.quitar||[]){ck(await db.from("informe_fotos").delete().eq("id",q.id));await db.storage.from("fotos").remove([q.ruta])}
+  }else ck(await db.from("informes").upsert(r.informe,opc));
   if(r.repuestos.length)ck(await db.from("informe_repuestos").upsert(r.repuestos,opc));
   for(const f of r.fotos){const u=await db.storage.from("fotos").upload(`${r.id}/${f.id}.jpg`,f.blob,{contentType:"image/jpeg"});if(u.error&&!/exist|duplicate/i.test(u.error.message))throw new Error(u.error.message)}
-  if(r.fotos.length)ck(await db.from("informe_fotos").upsert(r.fotos.map(f=>({id:f.id,informe_id:r.id,ruta:`${r.id}/${f.id}.jpg`,etiqueta:f.etiqueta,orden:f.orden})),opc))}
+  if(r.fotos.length)ck(await db.from("informe_fotos").upsert(r.fotos.map(f=>({id:f.id,informe_id:r.id,ruta:`${r.id}/${f.id}.jpg`,etiqueta:f.etiqueta,orden:f.orden})),opc));
+  if(r.corr){ /* por último, el informe vuelve a revisión */
+    const {id:_,...campos}=r.informe,u=await db.from("informes").update({...campos,estado:"enviado"}).eq("id",r.id).select("estado");ck(u);
+    if(!u.data.length){const e=await db.from("informes").select("estado").eq("id",r.id).single();if(!e.data||e.data.estado!=="enviado")throw new Error("El informe ya no se puede corregir")}
+  }}
 async function sync(){
   if(busy||!navigator.onLine||!uid)return;busy=true;let ok=0;
   try{const {data:{session}}=await db.auth.getSession();if(!session){$("#app").hidden=true;$("#login").hidden=false;return}
     for(const r of (await all()).filter(x=>x.uid===session.user.id)){
       try{await enviar(r);await del(r.id);ok++}catch(e){r.error=e.message||String(e);await put(r);if(!$("#nuevo").hidden)msg("No se pudo enviar todavía ("+r.error+"). Se reintentará solo.","pending");break}}
-  }finally{busy=false;chip();if(ok&&!$("#nuevo").hidden)msg("Informe enviado al supervisor.","sent")}}
+  }finally{busy=false;chip();if(ok&&typeof mis!=="undefined")mis.cargar();if(ok&&!$("#nuevo").hidden)msg("Informe enviado al supervisor.","sent")}}
 addEventListener("online",()=>{chip();sync()});addEventListener("offline",chip);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)sync()});setInterval(sync,30000);
+
+/* PDF de informes aprobados (se genera en el navegador; la librería se descarga solo al usarlo) */
+const pdfInf=(()=>{
+  const SEL="*,equipo:equipos(codigo,descripcion),tecnico:perfiles!tecnico_id(nombre),sistema:sistemas(nombre),componente:componentes(nombre),sintoma:sintomas(nombre),causa:causas(nombre),repuestos:informe_repuestos(codigo,cantidad),fotos:informe_fotos(ruta,etiqueta,orden),revisor:perfiles!revisado_por(nombre)";
+function construirPDF(JsPDF,i,imgs){
+  const doc=new JsPDF({unit:"mm",format:"a4"}),W=210,M=15,AN=W-2*M;let y=0;
+  const L=s=>String(s==null?"":s).replace(/[\u202f\u00a0]/g," ").replace(/[^\x09\x0A\x20-\x7E\xA1-\xFF]/g,"?");
+  const F=d=>d?L(new Date(d).toLocaleString("es-CL",{dateStyle:"medium",timeStyle:"short"})):"";
+  const salto=h=>{if(y+h>282){doc.addPage();y=18}};
+  doc.setFillColor(242,194,0);doc.rect(0,0,W,22,"F");
+  doc.setTextColor(27,33,39);doc.setFont("helvetica","bold");doc.setFontSize(17);doc.text("Informe de intervención",M,14);
+  doc.setFontSize(10);doc.text("APROBADO",W-M,14,{align:"right"});
+  y=33;doc.setFontSize(14);doc.text(L(i.equipo.codigo+" - "+i.equipo.descripcion),M,y);y+=6.5;
+  doc.setFont("helvetica","normal");doc.setFontSize(10);doc.setTextColor(90,100,108);doc.text(L(i.tipo+"  |  "+F(i.fecha_hora)),M,y);y+=9;
+  const campo=(k,v)=>{if(v==null||v==="")return;const t=doc.splitTextToSize(L(v),AN-45);salto(t.length*5+2);
+    doc.setFont("helvetica","bold");doc.setFontSize(9);doc.setTextColor(90,100,108);doc.text(L(k),M,y);
+    doc.setFont("helvetica","normal");doc.setFontSize(10);doc.setTextColor(27,33,39);doc.text(t,M+45,y);y+=t.length*5+2};
+  const num=i.horometro!=null?Number(i.horometro).toLocaleString("es-CL",{maximumFractionDigits:1}):"";
+  campo("Técnico",i.tecnico&&i.tecnico.nombre);campo("Horómetro u odómetro",num);
+  campo("Sistema",i.sistema&&i.sistema.nombre);campo("Componente",i.componente&&i.componente.nombre);campo("Síntoma",i.sintoma&&i.sintoma.nombre);
+  campo("Condición del equipo",i.condicion);campo("Descripción",i.descripcion);campo("Intervención",i.intervencion);
+  campo("Causa probable",i.causa&&i.causa.nombre);campo("Acciones realizadas",i.acciones);campo("Inicio",F(i.inicio_at));campo("Término",F(i.fin_at));
+  campo("Estado final",i.estado_final);campo("Pendientes",i.pendientes);
+  campo("Repuestos",(i.repuestos||[]).map(r=>r.codigo+" x "+r.cantidad).join(", "));
+  y+=3;salto(24);doc.setDrawColor(196,200,195);doc.line(M,y,W-M,y);y+=7;
+  doc.setFont("helvetica","bold");doc.setFontSize(11);doc.setTextColor(27,33,39);doc.text("Revisión",M,y);y+=6;
+  campo("Aprobado por",i.revisor&&i.revisor.nombre);campo("Fecha de aprobación",F(i.revisado_at));campo("Comentario",i.comentario_revision);
+  if(imgs.length){y+=3;salto(80);doc.setFont("helvetica","bold");doc.setFontSize(11);doc.setTextColor(27,33,39);doc.text("Evidencias fotográficas",M,y);y+=6;
+    const cw=(AN-6)/2,ch=62;let col=0;
+    imgs.forEach(im=>{const e=Math.min(cw/im.w,ch/im.h),w=im.w*e,h=im.h*e;if(col===0)salto(ch+10);
+      const x=M+col*(cw+6);doc.addImage(im.u,"JPEG",x,y,w,h);
+      doc.setFont("helvetica","normal");doc.setFontSize(8);doc.setTextColor(90,100,108);doc.text(L(im.etiqueta),x,y+h+4);
+      if(col===1){y+=ch+10;col=0}else col=1});
+    if(col===1)y+=ch+10}
+  const n=doc.getNumberOfPages();
+  for(let p=1;p<=n;p++){doc.setPage(p);doc.setFont("helvetica","normal");doc.setFontSize(8);doc.setTextColor(120,128,135);doc.text(L("Informe "+String(i.id).slice(0,8)+"  |  página "+p+" de "+n),M,291)}
+  return doc}
+
+  let lib=null;
+  const cargarLib=()=>lib=lib||new Promise((ok,no)=>{if(window.jspdf)return ok(window.jspdf.jsPDF);const s=document.createElement("script");s.src="https://cdn.jsdelivr.net/npm/jspdf@4.2.1/dist/jspdf.umd.min.js";s.crossOrigin="anonymous";s.onload=()=>ok(window.jspdf.jsPDF);s.onerror=()=>{lib=null;no(new Error("No se pudo cargar el generador de PDF"))};document.head.append(s)});
+  const aUrl=b=>new Promise(ok=>{const r=new FileReader();r.onload=()=>ok(r.result);r.readAsDataURL(b)});
+  const dims=u=>new Promise(ok=>{const m=new Image();m.onload=()=>ok([m.naturalWidth||4,m.naturalHeight||3]);m.onerror=()=>ok([4,3]);m.src=u});
+  async function traer(id){const r=await db.from("informes").select(SEL).eq("id",id).single();if(r.error)throw r.error;return r.data}
+  async function generar(modo,getInf,btn){
+    const w=modo==="imprimir"?window.open("","_blank"):null,txt=btn.textContent;
+    if(w)w.document.write("<p style='font-family:sans-serif'>Generando PDF…</p>");
+    btn.disabled=true;btn.textContent="Generando…";
+    try{const i=await getInf(),JsPDF=await cargarLib(),imgs=[];
+      for(const f of [...(i.fotos||[])].sort((a,b)=>a.orden-b.orden)){const r=await db.storage.from("fotos").download(f.ruta);if(r.error)continue;const u=await aUrl(r.data),[ww,hh]=await dims(u);imgs.push({u,w:ww,h:hh,etiqueta:f.etiqueta})}
+      const doc=construirPDF(JsPDF,i,imgs),nom=("Informe_"+i.equipo.codigo+"_"+new Date(i.fecha_hora).toISOString().slice(0,10)).replace(/[^\w.-]+/g,"_")+".pdf";
+      if(w)w.location.href=URL.createObjectURL(doc.output("blob"));else doc.save(nom)
+    }catch(e){if(w)w.close();alert("No se pudo generar el PDF. Revisa tu conexión e inténtalo de nuevo.\n("+(e.message||e)+")")}
+    finally{btn.disabled=false;btn.textContent=txt}}
+  return{generar,traer}})();
 
 /* Bandeja del supervisor (solo visible para supervisor y planificador) */
 const bandeja=(()=>{
 const ES={enviado:"Enviado",en_revision:"En revisión",aprobado:"Aprobado",observado:"Observado"};
 const fh=d=>d?new Date(d).toLocaleString("es-CL",{dateStyle:"medium",timeStyle:"short"}):"";
 const saviso=h=>{const a=$("#saviso");a.hidden=!h;a.innerHTML=h||""};
-const SEL="*,equipo:equipos(codigo,descripcion),tecnico:perfiles!tecnico_id(nombre),sistema:sistemas(nombre),componente:componentes(nombre),sintoma:sintomas(nombre),causa:causas(nombre),repuestos:informe_repuestos(codigo,cantidad),fotos:informe_fotos(ruta,etiqueta,orden)";
+const SEL="*,equipo:equipos(codigo,descripcion),tecnico:perfiles!tecnico_id(nombre),sistema:sistemas(nombre),componente:componentes(nombre),sintoma:sintomas(nombre),causa:causas(nombre),repuestos:informe_repuestos(codigo,cantidad),fotos:informe_fotos(ruta,etiqueta,orden),revisor:perfiles!revisado_por(nombre)";
 let data=[],cur=null;
 
 async function cargar(){
@@ -272,14 +373,14 @@ function pintar(){
   $("#filas").innerHTML=a.length?a.map(i=>`<button class="fila" data-id="${i.id}"><b>${esc(i.equipo.codigo)}</b><span>${esc(i.tipo)} · ${esc(i.condicion)}</span><span>${fh(i.fecha_hora)} · ${esc(i.tecnico?.nombre)}</span><em class="st ${i.estado}">${ES[i.estado]}</em></button>`).join(""):'<p class="hint">No hay informes con esos filtros.</p>';
   $$(".fila").forEach(b=>b.onclick=()=>abrir(b.dataset.id))}
 async function abrir(id){
-  cur=data.find(i=>i.id===id);const i=cur;$("#lista").hidden=true;$("#det").hidden=false;window.scrollTo(0,0);
+  cur=data.find(i=>i.id===id);const i=cur;$("#lista").hidden=true;$("#det").hidden=false;window.scrollTo(0,0);$("#pdfAcc").hidden=i.estado!=="aprobado";$("#pdfNo").hidden=i.estado==="aprobado";
   const dl=(k,v)=>v?`<dt>${k}</dt><dd>${esc(v)}</dd>`:"";
   $("#ficha").innerHTML=`<h2>${esc(i.equipo.codigo)} · ${esc(i.equipo.descripcion)}</h2><p class="st ${i.estado}">${ES[i.estado]}</p><dl>`
    +dl("Tipo",i.tipo)+dl("Fecha",fh(i.fecha_hora))+dl("Técnico",i.tecnico?.nombre)+dl("Horómetro u odómetro",i.horometro!=null?Number(i.horometro).toLocaleString("es-CL"):"")
    +dl("Sistema",i.sistema?.nombre)+dl("Componente",i.componente?.nombre)+dl("Síntoma",i.sintoma?.nombre)+dl("Condición",i.condicion)+dl("Descripción",i.descripcion)
    +dl("Intervención",i.intervencion)+dl("Causa probable",i.causa?.nombre)+dl("Acciones",i.acciones)+dl("Inicio",fh(i.inicio_at))+dl("Término",fh(i.fin_at))
    +dl("Estado final",i.estado_final)+dl("Pendientes",i.pendientes)+dl("Repuestos",i.repuestos.map(r=>r.codigo+" × "+r.cantidad).join(", "))
-   +dl("Comentario de revisión",i.comentario_revision)+"</dl>";
+   +dl("Comentario de revisión",i.comentario_revision)+dl("Corregido y reenviado",fh(i.corregido_at))+"</dl>";
   $("#coment").value=i.comentario_revision||"";$("#sfotos").innerHTML="";
   const f=[...i.fotos].sort((a,b)=>a.orden-b.orden);
   if(f.length){const s=await db.storage.from("fotos").createSignedUrls(f.map(x=>x.ruta),3600);
@@ -287,21 +388,139 @@ async function abrir(id){
 async function revisar(est){
   const c=$("#coment").value.trim();
   if(est==="observado"&&!c)return saviso("Escribe un comentario para que el técnico sepa qué corregir.");
-  const r=await db.from("informes").update({estado:est,comentario_revision:c||null,revisado_por:uid,revisado_at:new Date().toISOString()}).eq("id",cur.id).select("estado,comentario_revision");
+  const r=await db.from("informes").update({estado:est,comentario_revision:c||null,revisado_por:uid,revisado_at:new Date().toISOString()}).eq("id",cur.id).select("estado,comentario_revision,revisado_at,revisor:perfiles!revisado_por(nombre)");
   if(r.error||!r.data.length)return saviso("No se pudo guardar: "+esc(r.error?r.error.message:"sin permiso"));
   saviso("");Object.assign(cur,r.data[0]);abrir(cur.id)}
 $$("[data-e]").forEach(b=>b.onclick=()=>revisar(b.dataset.e));
-$("#imp").onclick=()=>window.print();
+$("#pdfDl").onclick=()=>pdfInf.generar("descargar",async()=>cur,$("#pdfDl"));$("#pdfPr").onclick=()=>pdfInf.generar("imprimir",async()=>cur,$("#pdfPr"));
 $("#volver").onclick=()=>{$("#det").hidden=true;$("#lista").hidden=false;saviso("");pintar()};
 $("#fe").onchange=pintar;$("#ft").oninput=pintar;$("#rec").onclick=cargar;
 return {cargar};
 })();
-let bandejaOK=false;
-function vista(v){const b=v==="ban";$("#vInforme").hidden=b;$("#vBandeja").hidden=!b;$("#app").classList.toggle("ancho",b);$("#tInf").classList.toggle("on",!b);$("#tBan").classList.toggle("on",b);window.scrollTo(0,0);if(b)bandeja.cargar()}
-$("#tInf").onclick=()=>vista("inf");$("#tBan").onclick=()=>vista("ban");
+/* Mis informes: estado y comentarios de revisión de los informes del propio usuario */
+const mis=(()=>{
+  const ES={enviado:"Enviado",en_revision:"En revisión",aprobado:"Aprobado",observado:"Observado",pend:"Pendiente de enviar"};
+  const fh=d=>d?new Date(d).toLocaleString("es-CL",{dateStyle:"medium",timeStyle:"short"}):"";
+  const fila=(cod,desc,fecha,est,com,id)=>`<div class="mi"><div class="row"><b>${esc(cod)}</b><em class="st ${est}">${ES[est]||esc(est)}</em></div><div class="hint">${esc(desc)} · ${fh(fecha)}</div>${com?`<p class="msg ${est==="observado"?"err":est==="aprobado"?"sent":""}"><b>Comentario del supervisor:</b> ${esc(com)}</p>`:""}${est==="aprobado"&&id?`<div class="acciones"><button data-pdf="descargar" data-id="${esc(id)}">Descargar PDF</button><button data-pdf="imprimir" data-id="${esc(id)}">Imprimir</button></div>`:""}${est==="observado"&&id?`<div class="acciones"><button data-corr="${esc(id)}" class="pri">Corregir y reenviar</button></div>`:""}</div>`;
+  async function cargar(){
+    let lista=[],ok=true;
+    try{const r=await db.from("informes").select("id,tipo,condicion,fecha_hora,estado,comentario_revision,equipo:equipos(codigo,descripcion)").eq("tecnico_id",uid).order("fecha_hora",{ascending:false}).limit(100);
+      if(r.error)throw r.error;lista=r.data;localStorage.setItem("mis_"+uid,JSON.stringify(lista))}
+    catch(e){ok=false;lista=JSON.parse(localStorage.getItem("mis_"+uid)||"[]")}
+    const pend=(await all()).filter(r=>r.uid===uid);
+    $("#misAviso").hidden=ok;
+    const h=pend.map(p=>{const e=cat&&cat.equipos.find(x=>x.id===p.informe.equipo_id)||{};return fila(e.codigo||"Equipo",p.informe.tipo,p.informe.fecha_hora,"pend")}).join("")
+      +lista.map(i=>fila(i.equipo.codigo,i.tipo+" · "+i.condicion,i.fecha_hora,i.estado,i.comentario_revision,i.id)).join("");
+    $("#misLista").innerHTML=h||'<p class="hint">Aún no has enviado informes.</p>';
+    $$("#misLista [data-pdf]").forEach(b=>{b.onclick=()=>pdfInf.generar(b.dataset.pdf,()=>pdfInf.traer(b.dataset.id),b)});
+    $$("#misLista [data-corr]").forEach(b=>{b.onclick=()=>corregir(b.dataset.corr,b)});
+    const n=lista.filter(i=>i.estado==="observado").length;$("#tMis").textContent=n?`Mis informes (${n})`:"Mis informes"}
+  return{cargar}})();
+
+/* Indicadores (supervisor y planificador) */
+const ind=(()=>{
+  const num=(x,d=1)=>x==null||isNaN(x)?"—":Number(x).toLocaleString("es-CL",{maximumFractionDigits:d});
+  const hrs=i=>(new Date(i.fin_at)-new Date(i.inicio_at))/36e5;
+  let D=null;
+  async function cargar(){
+    const dias=+$("#iPer").value,desde=new Date(Date.now()-dias*864e5).toISOString();
+    $("#iCont").innerHTML='<p class="hint">Cargando…</p>';
+    const [r,q]=await Promise.all([
+      db.from("informes").select("equipo_id,tipo,fecha_hora,horometro,inicio_at,fin_at,condicion,equipo:equipos(codigo,descripcion),sistema:sistemas(nombre),componente:componentes(nombre),sintoma:sintomas(nombre),causa:causas(nombre)").gte("fecha_hora",desde).order("fecha_hora").limit(1000),
+      db.from("equipos").select("id",{count:"exact",head:true}).eq("activo",true)]);
+    if(r.error){$("#iCont").innerHTML=`<p class="msg err">No se pudieron cargar los datos: ${esc(r.error.message)}</p>`;return}
+    D={rows:r.data,neq:q.count||0,dias};pintar()}
+  function pintar(){
+    if(!D)return;const {rows,neq,dias}=D,dim=$("#iDim").value;
+    const nombre={sistema:"sistema",componente:"componente",sintoma:"síntoma",causa:"causa"}[dim];
+    const f=rows.filter(i=>i.tipo==="Falla");
+    const mttr=f.length?f.reduce((a,i)=>a+hrs(i),0)/f.length:null;
+    const parada=rows.filter(i=>i.condicion==="Detenido").reduce((a,i)=>a+hrs(i),0);
+    const disp=neq?Math.max(0,1-parada/(dias*24*neq))*100:null;
+    const E={},get=i=>E[i.equipo_id]??={c:i.equipo.codigo,d:i.equipo.descripcion,n:0,h:0,p:0,ho:[]};
+    rows.forEach(i=>{const e=get(i);if(i.tipo==="Falla"){e.n++;e.h+=hrs(i);if(i.horometro!=null)e.ho.push(Number(i.horometro))}if(i.condicion==="Detenido")e.p+=hrs(i)});
+    const todos=Object.values(E).filter(e=>e.n||e.p).map(e=>({...e,mttr:e.n?e.h/e.n:null,mtbf:e.ho.length>1?(Math.max(...e.ho)-Math.min(...e.ho))/(e.ho.length-1):null})).sort((a,b)=>b.n-a.n||b.p-a.p);
+    const mb=todos.filter(e=>e.mtbf!=null),mtbf=mb.length?mb.reduce((a,e)=>a+e.mtbf,0)/mb.length:null;
+    const G={};f.forEach(i=>{const k=(i[dim]&&i[dim].nombre)||"Sin dato";G[k]=(G[k]||0)+1});
+    const par=Object.entries(G).sort((a,b)=>b[1]-a[1]);let ac=0;
+    const pareto=par.map(([k,v])=>{ac+=v;return`<div class="pa"><span>${esc(k)}</span><div class="bar"><i style="width:${v/par[0][1]*100}%"></i></div><b>${v}</b><span class="hint">${num(ac/f.length*100,0)} %</span></div>`}).join("");
+    const filas=todos.slice(0,15).map(e=>`<tr><td>${esc(e.c)}<div class="hint">${esc(e.d)}</div></td><td>${e.n}</td><td>${num(e.mttr)}</td><td>${num(e.mtbf,0)}</td><td>${num(e.p)}</td></tr>`).join("");
+    $("#iCont").innerHTML=`<h2 class="solo-imp">Indicadores de mantenimiento</h2><p class="hint">Últimos ${dias} días · ${rows.length} informes · ${neq} equipos activos · generado el ${new Date().toLocaleDateString("es-CL")}</p>
+<div class="kpis"><div class="kpi"><span>Fallas</span><b>${f.length}</b></div><div class="kpi"><span>MTTR (h)</span><b>${num(mttr)}</b></div><div class="kpi"><span>MTBF (unid. del horómetro)</span><b>${num(mtbf,0)}</b></div><div class="kpi"><span>Disponibilidad estimada</span><b>${disp==null?"—":num(disp)+" %"}</b></div></div>
+<h3>Pareto de fallas por ${nombre}</h3>${pareto||'<p class="hint">Sin fallas en el período.</p>'}
+<h3>Equipos con más fallas o más horas detenido</h3>${filas?`<div class="tbl"><table><tr><th>Equipo</th><th>Fallas</th><th>MTTR (h)</th><th>MTBF</th><th>Horas detenido</th></tr>${filas}</table></div>`:'<p class="hint">Sin datos en el período.</p>'}
+<p class="hint"><b>Cómo se calcula.</b> MTTR: promedio de horas entre inicio y término de las intervenciones de tipo Falla. MTBF: por equipo, (horómetro de la última falla − horómetro de la primera) ÷ (n.º de fallas con horómetro − 1); el total es el promedio entre equipos y queda en las unidades del horómetro u odómetro. Disponibilidad estimada: 1 − horas de intervención con equipo detenido ÷ (días × 24 × equipos activos); no considera la espera de repuestos.</p>`}
+  $("#iPer").onchange=cargar;$("#iDim").onchange=pintar;$("#iImp").onclick=()=>window.print();
+  return{cargar,pintar}})();
+
+/* Corregir y reenviar un informe observado */
+function setRad(n,v){$$(`[name=${n}]`).forEach(e=>{e.checked=e.value===v})}
+async function corregir(id,btn){
+  if(!navigator.onLine)return alert("Necesitas conexión para abrir el informe y corregirlo.");
+  if(localStorage.getItem("borrador")&&!confirm("Se reemplazará lo que tienes escrito en el formulario. ¿Continuar?"))return;
+  const t=btn.textContent;btn.disabled=true;btn.textContent="Abriendo…";
+  try{
+    const i=await pdfInf.traer(id);if(i.estado!=="observado")throw new Error("El informe ya no está observado.");
+    $("#nuevo").onclick();edit={id:i.id,fecha_hora:i.fecha_hora,fotos:i.fotos||[]};
+    const f=$("#f"),hm=d=>{const x=new Date(d);return String(x.getHours()).padStart(2,"0")+":"+String(x.getMinutes()).padStart(2,"0")};
+    f.elements.equipo.value=i.equipo.codigo+" · "+i.equipo.descripcion;setRad("tipo",i.tipo);setRad("condicion",i.condicion);setRad("interv",i.intervencion);setRad("final",i.estado_final);
+    if(i.horometro!=null)$("#horo").value=fmtHoro(String(i.horometro).replace(".",","));
+    if(i.sistema_id){$("#sis").value=i.sistema_id;comp()}if(i.componente_id)$("#comp").value=i.componente_id;
+    if(i.sintoma_id)$("#sint").value=i.sintoma_id;if(i.causa_id)$("#causa").value=i.causa_id;
+    $("#desc").value=i.descripcion||"";$("#acc").value=i.acciones||"";$("#pend").value=i.pendientes||"";$("#ini").value=hm(i.inicio_at);$("#fin").value=hm(i.fin_at);
+    (i.repuestos||[]).forEach(x=>{$("#addrep").onclick();const q=$$("#reps .rep").pop().querySelectorAll("input");q[0].value=x.codigo;q[1].value=x.cantidad});
+    for(const x of [...(i.fotos||[])].sort((a,b)=>a.orden-b.orden)){if(x.orden>=NF)continue;const r=await db.storage.from("fotos").download(x.ruta);if(r.error)continue;fotos[x.orden]={blob:r.data,url:URL.createObjectURL(r.data),fid:x.id};labels[x.orden]=x.etiqueta}
+    pintFotos();
+    $("#corrTxt").textContent="Corrigiendo el informe de "+i.equipo.codigo+". Comentario del supervisor: "+(i.comentario_revision||"(sin comentario)");$("#corrBanner").hidden=false;
+    vista("inf");show(0)
+  }catch(e){edit=null;alert("No se pudo abrir el informe para corregirlo: "+(e.message||e))}
+  finally{btn.disabled=false;btn.textContent=t}}
+$("#corrCancel").onclick=()=>{edit=null;$("#corrBanner").hidden=true;$("#nuevo").onclick()};
+
+/* Plan preventivo: ciclo A → B → C, semáforo por vencimiento (supervisor y planificador) */
+const plan=(()=>{
+  const CL={"Vencida":"observado","Por vencer":"en_revision","Al día":"aprobado","Sin fecha":"enviado"};
+  const fd=d=>d?new Date(d+"T12:00:00").toLocaleDateString("es-CL",{day:"2-digit",month:"2-digit",year:"numeric"}):"—";
+  let D=[];
+  async function cargar(){
+    const r=await db.from("v_plan_preventivo").select("*").order("dias_para_vencer",{ascending:true,nullsFirst:true});
+    if(r.error){$("#plLista").innerHTML=`<p class="msg err">No se pudo cargar el plan: ${esc(r.error.message)}. ¿Ya ejecutaste esquema_v3_plan_preventivo.sql en Supabase?</p>`;return}
+    D=r.data;pintar()}
+  function pintar(){
+    const s=$("#plSem").value,t=$("#plBus").value.toLowerCase();
+    $("#plKpis").innerHTML=["Vencida","Por vencer","Al día","Sin fecha"].map(k=>`<div class="kpi"><span>${k==="Vencida"?"Vencidas":k}</span><b>${D.filter(x=>x.semaforo===k).length}</b></div>`).join("");
+    const a=D.filter(x=>(!s||x.semaforo===s)&&(!t||(x.codigo+" "+x.descripcion+" "+(x.tipo_equipo||"")).toLowerCase().includes(t)));
+    $("#plLista").innerHTML=a.map(x=>{const d=x.dias_para_vencer,cuando=d==null?"":d<0?`vencida hace ${-d} días`:d===0?"vence hoy":`en ${d} días`;
+      return `<div class="mi"><div class="row"><b>${esc(x.codigo)} · ${esc(x.descripcion)}</b><em class="st ${CL[x.semaforo]}">${x.semaforo}</em></div>
+<div class="hint">${esc(x.tipo_equipo||"")}${x.observacion?" · "+esc(x.observacion):""}</div>
+<div>Próxima: <b>${esc(x.proximo_tipo)}</b> · ${fd(x.fecha_proxima)}${cuando?` (${cuando})`:""}</div>
+<div class="hint">Última: ${x.ultimo_tipo?esc(x.ultimo_tipo)+" · ":""}${fd(x.ultima_fecha)}</div>
+<div class="acciones"><button data-reg="${esc(x.equipo_id)}" data-sig="${esc(x.proximo_tipo)}">Registrar mantención</button></div></div>`}).join("")||'<p class="hint">No hay equipos con esos filtros.</p>';
+    $$("#plLista [data-reg]").forEach(b=>{b.onclick=()=>formulario(b)})}
+  function formulario(b){
+    const box=b.parentElement,id=b.dataset.reg;
+    box.innerHTML=`<select aria-label="Tipo de mantención">${["A","B","C"].map(t=>`<option${t===b.dataset.sig?" selected":""}>${t}</option>`).join("")}</select><input type="date" aria-label="Fecha" value="${new Date().toLocaleDateString("en-CA")}"><button class="pri">Guardar</button><button>Cancelar</button>`;
+    const [sel,fe,ok,no]=box.querySelectorAll("select,input,button");
+    no.onclick=pintar;
+    ok.onclick=async()=>{ok.disabled=true;const r=await db.rpc("registrar_mantencion",{p_equipo:id,p_tipo:sel.value,p_fecha:fe.value});
+      if(r.error){alert("No se pudo registrar: "+r.error.message);ok.disabled=false;return}cargar()}}
+  $("#plSem").onchange=pintar;$("#plBus").oninput=pintar;$("#plAgr").onclick=()=>{$("#plAgrBox").hidden=!$("#plAgrBox").hidden};
+  $("#plOk").onclick=async()=>{
+    const e=cat&&cat.equipos.find(x=>x.codigo+" · "+x.descripcion===$("#plEq").value.trim());if(!e)return alert("Elige un equipo de la lista.");
+    const t=$("#plTipo").value,f=$("#plFecha").value;if(!!t!==!!f)return alert("Para registrar la última mantención indica el tipo y la fecha, o deja ambos vacíos.");
+    const r=t?await db.rpc("registrar_mantencion",{p_equipo:e.id,p_tipo:t,p_fecha:f}):await db.from("planes").upsert({equipo_id:e.id},{onConflict:"equipo_id",ignoreDuplicates:true});
+    if(r.error)return alert("No se pudo agregar: "+r.error.message);
+    $("#plAgrBox").hidden=true;$("#plEq").value="";$("#plTipo").value="";$("#plFecha").value="";cargar()}
+  return{cargar}})();
+
+const V={inf:["vInforme","tInf"],mis:["vMis","tMis"],ban:["vBandeja","tBan"],ind:["vInd","tInd"],pla:["vPlan","tPla"]};
+function vista(v){Object.entries(V).forEach(([k,[d,t]])=>{$("#"+d).hidden=k!==v;$("#"+t).classList.toggle("on",k===v)});
+  $("#app").classList.toggle("ancho",v==="ban"||v==="ind"||v==="pla");window.scrollTo(0,0);
+  if(v==="mis")mis.cargar();if(v==="ban")bandeja.cargar();if(v==="ind")ind.cargar();if(v==="pla")plan.cargar()}
+Object.keys(V).forEach(k=>{$("#"+V[k][1]).onclick=()=>vista(k)});
 async function rolUI(){let rol=localStorage.getItem("rol");
   try{const p=await db.from("perfiles").select("rol").eq("id",uid).single();if(p.data){rol=p.data.rol;localStorage.setItem("rol",rol)}}catch(e){}
-  $("#tabs").hidden=!["supervisor","planificador"].includes(rol)}
+  const sup=["supervisor","planificador"].includes(rol);$("#tBan").hidden=!sup;$("#tInd").hidden=!sup;$("#tPla").hidden=!sup;mis.cargar()}
 
 if("serviceWorker"in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js"));
 init();
